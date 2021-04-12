@@ -9,8 +9,24 @@
 
 static Display *dpy;
 static int scr, sw, sh;
-static int sx, sy;
+static int sx = -1, sy = -1;
 static Window root;
+
+
+static void scroll(int v) {
+	int btn;
+	if (v > 0) btn = 4;
+	else if (v < 0) btn = 5;
+	else return;	
+	
+	for (int i = 0; i < abs(v); i++) {
+		XTestFakeButtonEvent(dpy, btn, True, CurrentTime);
+		XFlush(dpy);
+//		usleep(100000);
+		XTestFakeButtonEvent(dpy, btn, False, CurrentTime);
+		XFlush(dpy);
+	}
+}
 
 static void select_events(Display *dpy, Window win) {
     XIEventMask evmasks[1];
@@ -44,8 +60,10 @@ static void* loop() {
 		getmousepos(&px, &py);
 		dx = px - lx;
 		dy = py - ly;
-		printf("(%d, %d) from (%d, %d)\n", px, py, sx, sy);
-		sleep(1);
+
+		if (sx != -1 && sy != -1) scroll(dy);
+		printf("%d, %d with deltas (%d, %d)\n", sx, sy,  dx, dy);
+		sleep(0.1);
 
 
 	}
@@ -53,9 +71,7 @@ static void* loop() {
 
 static void mouse_down(XIRawEvent *xev) {
 	getmousepos(&sx, &sy);
-	
 	printf("Button pressed %d @ %d, %d\n", xev->detail, sx, sy);
-
 }
 
 static void mouse_up(XIRawEvent *xev) {
