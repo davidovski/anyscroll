@@ -1,6 +1,7 @@
 
 PROG	= anyscroll
-FLAGS	= -lX11 -lXtst
+FLAGS	= -lX11 -lXtst -lXi -lpthread
+
 
 
 ${PROG}: ${PROG}.o 
