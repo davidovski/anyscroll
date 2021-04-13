@@ -14,23 +14,31 @@ static int scr, sw, sh;
 static int sx = -1, sy = -1;
 static Window root;
 
-static const int direction = -1;
-static const int pixels_to_scroll = 16;
+static int tx, ty;
+static int vx, vy;
+
+static const int direction = -1; // direction to scroll in. 1 is natural, -1 is in direction of movement
+static const int pixels_to_scroll = 8; // number of pixels to move before one scroll event
+
 
 static void scroll(int v) {
 	v = v * direction;
+	printf("scrolling with v of %d\n", v);
 
 	int btn;
 	if (v > 0) btn = 4;
 	else if (v < 0) btn = 5;
 	else return;	
 	
-	int times = ceil(abs(v) / pixels_to_scroll) + 1;
+	int times = abs(v);
 	for (int i = 0; i < times; i++) {
-		XTestFakeButtonEvent(dpy, btn, True, CurrentTime);
-		XFlush(dpy);
-		XTestFakeButtonEvent(dpy, btn, False, CurrentTime);
-		XFlush(dpy);
+		tx++;
+		if (tx % pixels_to_scroll == 0) {
+			XTestFakeButtonEvent(dpy, btn, True, CurrentTime);
+			XFlush(dpy);
+			XTestFakeButtonEvent(dpy, btn, False, CurrentTime);
+			XFlush(dpy);
+		}
 	}
 }
 
@@ -61,7 +69,7 @@ static void getmousepos(int *px, int *py) {
 static void* loop() {
 	int px, py, lx, ly, dx, dy;
 	while (1) {
-		lx =  px, ly = py;
+ 		lx =  px, ly = py;
 		getmousepos(&px, &py);
 		dx = px - lx;
 		dy = py - ly;
@@ -69,7 +77,7 @@ static void* loop() {
 		if (sx != -1 && sy != -1) scroll(dy);
 
 		if (dx != 0 | dy != 0) {
-			printf("%d, %d with deltas (%d, %d)\n", sx, sy,  dx, dy);
+			//printf("%d, %d with deltas (%d, %d)\n", sx, sy,  dx, dy);
 		}
 		sleep(0.1);
 	}
@@ -128,8 +136,9 @@ int main(int argc, const char **argv) {
 					if (xev->detail == 2) mouse_up(xev);
 				break;
 			}
-	
-			XFreeEventData(dpy, cookie);
+			//if (t - CurrentTime < 500) {
+			//	XFreeEventData(dpy, cookie);
+			//}
 		}
 	} // there is no way out of this loop lol
 	XCloseDisplay(dpy);
