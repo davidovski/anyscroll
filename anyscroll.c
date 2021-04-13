@@ -6,44 +6,49 @@
 #include <unistd.h>
 #include <X11/extensions/XInput2.h>
 #include <pthread.h>
+#include <math.h>
+
 
 static Display *dpy;
 static int scr, sw, sh;
 static int sx = -1, sy = -1;
 static Window root;
 
+static const int direction = -1;
+static const int pixels_to_scroll = 16;
 
 static void scroll(int v) {
+	v = v * direction;
+
 	int btn;
 	if (v > 0) btn = 4;
 	else if (v < 0) btn = 5;
 	else return;	
 	
-	for (int i = 0; i < abs(v); i++) {
+	int times = ceil(abs(v) / pixels_to_scroll) + 1;
+	for (int i = 0; i < times; i++) {
 		XTestFakeButtonEvent(dpy, btn, True, CurrentTime);
 		XFlush(dpy);
-//		usleep(100000);
 		XTestFakeButtonEvent(dpy, btn, False, CurrentTime);
 		XFlush(dpy);
 	}
 }
 
 static void select_events(Display *dpy, Window win) {
-    XIEventMask evmasks[1];
-    unsigned char mask1[(XI_LASTEVENT + 7)/8];
+	XIEventMask evmasks[1];
+	unsigned char mask1[(XI_LASTEVENT + 7)/8];
 
-    memset(mask1, 0, sizeof(mask1));
+	memset(mask1, 0, sizeof(mask1));
 
-    /* select for button and key events from all master devices */
-    XISetMask(mask1, XI_RawButtonPress);
-    XISetMask(mask1, XI_RawButtonRelease);
+	XISetMask(mask1, XI_RawButtonPress);
+	XISetMask(mask1, XI_RawButtonRelease);
 
-    evmasks[0].deviceid = XIAllMasterDevices;
-    evmasks[0].mask_len = sizeof(mask1);
-    evmasks[0].mask = mask1;
+	evmasks[0].deviceid = XIAllMasterDevices;
+	evmasks[0].mask_len = sizeof(mask1);
+	evmasks[0].mask = mask1;
 
-    XISelectEvents(dpy, win, evmasks, 1);
-    XFlush(dpy);
+	XISelectEvents(dpy, win, evmasks, 1);
+	XFlush(dpy);
 }
 
 static void getmousepos(int *px, int *py) {
@@ -62,22 +67,21 @@ static void* loop() {
 		dy = py - ly;
 
 		if (sx != -1 && sy != -1) scroll(dy);
-		printf("%d, %d with deltas (%d, %d)\n", sx, sy,  dx, dy);
+
+		if (dx != 0 | dy != 0) {
+			printf("%d, %d with deltas (%d, %d)\n", sx, sy,  dx, dy);
+		}
 		sleep(0.1);
-
-
 	}
 }
 
 static void mouse_down(XIRawEvent *xev) {
 	getmousepos(&sx, &sy);
-	printf("Button pressed %d @ %d, %d\n", xev->detail, sx, sy);
 }
 
 static void mouse_up(XIRawEvent *xev) {
 	sx = -1;
 	sy = -1;
-	printf("Button released %d %d\n", xev->detail);
 }
 
 int main(int argc, const char **argv) {
@@ -95,7 +99,7 @@ int main(int argc, const char **argv) {
 	sw = DisplayWidth(dpy, scr);
 	sh = DisplayHeight(dpy, scr);
 	
-	fprintf(stdout, "waiting for events\n");
+	fprintf(stdout, "waiting for events...\n");
 
 	XEvent ev;
 	XIEvent *xi_event;
@@ -119,15 +123,15 @@ int main(int argc, const char **argv) {
 			switch (cookie->evtype) {
 				case XI_RawButtonPress:
 					if (xev->detail == 2) mouse_down(xev);
-					break;
+				break;
 				case XI_RawButtonRelease:
 					if (xev->detail == 2) mouse_up(xev);
-					break;
+				break;
 			}
 	
 			XFreeEventData(dpy, cookie);
 		}
-	}
+	} // there is no way out of this loop lol
 	XCloseDisplay(dpy);
 	return 0;
 }
